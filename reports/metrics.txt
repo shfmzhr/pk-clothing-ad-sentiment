@@ -1,0 +1,28 @@
+Labeled comments used: 570
+sentiment
+positive    332
+neutral     215
+negative     23
+
+=== Baseline: always predict the majority class ===
+macro-F1: 0.245
+
+=== TF-IDF + Logistic Regression (5-fold cross-validation) ===
+              precision    recall  f1-score   support
+
+    negative      0.214     0.130     0.162        23
+     neutral      0.707     0.740     0.723       215
+    positive      0.834     0.831     0.833       332
+
+    accuracy                          0.768       570
+   macro avg      0.585     0.567     0.572       570
+weighted avg      0.761     0.768     0.764       570
+
+=== By language guess ===
+emoji_only   n=8    accuracy=1.000  macro-F1=1.000
+english      n=408  accuracy=0.799  macro-F1=0.540
+roman_urdu   n=134  accuracy=0.657  macro-F1=0.538
+urdu_script  n=20   accuracy=0.800  macro-F1=0.444
+
+Misclassified: 132 -> reports/errors.csv
+Predictions for 1977 comments -> data/processed/predictions.csv
