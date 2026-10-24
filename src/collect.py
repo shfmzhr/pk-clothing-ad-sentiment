@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import argparse
 
@@ -9,8 +9,8 @@ from googleapiclient.errors import HttpError
 
 sys.stdout.reconfigure(encoding="utf-8")  # so Urdu/emoji don't crash PowerShell
 
-load_dotenv()
-API_KEY = os.getenv("AIzaSyCQWpbOag1QDlbD_q0Xf4xxg29on_PMY8E")
+from pathlib import Path; load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True, encoding="utf-8-sig")
+API_KEY = os.getenv("YOUTUBE_API_KEY")
 if not API_KEY:
     raise SystemExit("YOUTUBE_API_KEY not found in .env")
 
@@ -102,3 +102,4 @@ if __name__ == "__main__":
     path = f"data/raw/comments_{args.brand.replace(' ', '_').lower()}.csv"
     df.to_csv(path, index=False, encoding="utf-8-sig")
     print(f"Saved {len(df)} comments -> {path}")
+
