@@ -1,7 +1,7 @@
 ﻿import os
 import sys
 import argparse
-
+import html
 import pandas as pd
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
@@ -21,28 +21,49 @@ BRANDS = {
     "Khaadi":    ("Khaadi collection ad",          "khaadi"),
     "Gul Ahmed": ("Gul Ahmed collection ad",       "gul ahmed"),
     "Sapphire":  ("Sapphire Pakistan lawn collection", "sapphire"),
+    "Limelight": ("Limelight Pakistan collection", "limelight"),
+    "Maria B":       ("Maria B collection",             "maria"),
+    "Sana Safinaz":  ("Sana Safinaz collection",        "sana safinaz"),
+    "Bonanza":       ("Bonanza Satrangi collection",    "bonanza"),
+    "Nishat Linen":  ("Nishat Linen collection",        "nishat"),
 }
 
 
 def find_videos(brand, n_videos):
-    """Search YouTube, keep only videos from the brand's own channel."""
+    """Search YouTube, keep the brand's own channel, rank by comment count."""
     query, channel_key = BRANDS[brand]
-    resp = youtube.search().list(
-        part="snippet", q=query, type="video", maxResults=50
-    ).execute()
+    found, token = {}, None
+    for _ in range(2):  # 2 pages of search results
+        resp = youtube.search().list(
+            part="snippet", q=query, type="video",
+            maxResults=50, pageToken=token
+        ).execute()
+        for item in resp.get("items", []):
+            sn = item["snippet"]
+            if channel_key in sn["channelTitle"].lower():
+                vid = item["id"]["videoId"]
+                found[vid] = {
+                    "brand": brand,
+                    "video_id": vid,
+                    "video_title": html.unescape(sn["title"]),
+                    "channel": html.unescape(sn["channelTitle"]),
+                    "video_published": sn["publishedAt"],
+                    "video_url": "https://www.youtube.com/watch?v=" + vid,
+                }
+        token = resp.get("nextPageToken")
+        if not token:
+            break
+    if not found:
+        return []
 
-    rows = []
-    for item in resp.get("items", []):
-        sn = item["snippet"]
-        if channel_key in sn["channelTitle"].lower():
-            rows.append({
-                "brand": brand,
-                "video_id": item["id"]["videoId"],
-                "video_title": sn["title"],
-                "channel": sn["channelTitle"],
-                "video_published": sn["publishedAt"],
-                "video_url": "https://www.youtube.com/watch?v=" + item["id"]["videoId"],
-            })
+    stats = youtube.videos().list(
+        part="statistics", id=",".join(list(found)[:50])
+    ).execute()
+    for item in stats.get("items", []):
+        found[item["id"]]["comment_count"] = int(item["statistics"].get("commentCount", 0))
+
+    rows = [v for v in found.values() if v.get("comment_count", 0) > 0]
+    rows.sort(key=lambda v: v["comment_count"], reverse=True)
     return rows[:n_videos]
 
 
@@ -81,9 +102,18 @@ if __name__ == "__main__":
     ap.add_argument("--brand", required=True, choices=BRANDS.keys())
     ap.add_argument("--videos", type=int, default=5)
     ap.add_argument("--comments", type=int, default=300)
+    ap.add_argument("--list", action="store_true", help="show videos and comment counts, then stop")
     args = ap.parse_args()
 
     videos = find_videos(args.brand, args.videos)
+    if args.list:
+        total = 0
+        for v in videos:
+            total += v["comment_count"]
+            print(f"{v['comment_count']:>6}  {v['video_title'][:70]}")
+        print(f"TOTAL comments available across {len(videos)} videos: {total}")
+        raise SystemExit
+    print(f"Found {len(videos)} videos from official channel:")
     print(f"Found {len(videos)} videos from official channel:")
     for v in videos:
         print(f"  [{v['channel']}] {v['video_title']}")
